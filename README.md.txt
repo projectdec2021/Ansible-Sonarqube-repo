@@ -1,1 +1,0 @@
-Ansible playbook to automate sonarqube installation and configuration using sonarqube
