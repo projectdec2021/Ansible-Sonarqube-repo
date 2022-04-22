@@ -1,0 +1,69 @@
+---
+- name: Installation of Sonarqube
+  hosts: localhost
+  tasks:
+    - name: "Install a list of packages"
+      apt:
+        pkg:
+        - unzip
+        - software-properties-common
+        - wget
+        - default-jdk
+        - postgresql
+        - postgresql-contrib
+##################################################3
+#    - name: "Create db user"
+#      postgresql_user:
+#        state: present
+#        name:  sonarqube 
+#        password:  sonarqube 
+#      become: yes
+#      become_user: postgres 
+###################################################
+    - name: "Sonarqube installation"
+      command: "{{ item }}"
+      with_items:
+              - mkdir /downloads/sonarqube -p creates=/downloads/sonarqube chdir /downloads/sonarqube
+              - wget https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-7.9.1.zip
+              - unzip sonarqube-7.9.1.zip
+              - mv sonarqube-7.9.1 /opt/sonarqube
+ #   - name: "Sonarqube User Setu"
+ #     command: "{{ item }}"
+ #     with_items:
+ #             - useradd sonarqube
+ #             - chown -R sonarqube:sonarqube /opt/sonarqube 
+
+    - name: "Edit the sonar.sh configuration file"
+      lineinfile:
+               path: /opt/sonarqube/bin/linux-x86-64/sonar.sh
+               line: RUN_AS_USER=sonarqube
+#######################               
+    - name: "Edit the sonar.properties configuration file"
+      lineinfile:
+              path: /opt/sonarqube/conf/sonar.properties
+              line: "{{ item }}"
+      with_items:
+              - sonar.jdbc.username=sonarqube
+              - sonar.jdbc.password=password
+              - sonar.jdbc.url=jdbc:postgresql://localhost/sonarqube
+              - sonar.web.javaAdditionalOpts=-server
+              - sonar.web.host=0.0.0.0
+     - name: "Create a Linux configuration file named 99-sonarqube.conf"
+       copy:
+         dest: "/etc/security/limits.d/99-sonarqube.conf"
+         content: |
+                 'sonarqube   -   nofile   65536'
+                 'sonarqube   -   nproc    4096'
+
+     - name: "Edit the sysctl.conf configuration file."
+       copy:
+          dest: "/etc/sysctl.conf"
+          content: |
+                  vm.max_map_count=262144
+                  fs.file-max=65536
+
+     - name: "reboot the machine to apply all the configurations"
+       reboot:
+
+     - name: "Start Sonarqube service after reboot"
+       command: /opt/sonarqube/bin/linux-x86-64/sonar.sh start               
